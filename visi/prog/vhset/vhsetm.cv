@@ -1,0 +1,187 @@
+/*
+**      +----------+    библиотека ввода-вывода
+**     (c) linlib  !    для алфавитно-цифровых
+**      +----------+    видеотерминалов
+**/
+
+/*
+ *      $Header$
+ *
+ *      $Log$
+ */
+
+#include <stdio.h>      /* заголовок стандартной библиотеки вв/выв */
+#include "line.h"       /* файл-заголовок LINLIB */
+#include "line0.h"
+#include "linebp.h"
+#include "vhset.h"      /* описание общих данных и процедур */
+
+char   *vexdir =        /* Каталог вынесенных описаний страниц */
+#ifdef DEMOS2
+	"/usr/local/lib/visi/vhset/";
+#else
+#ifdef RT11
+	"LIN:";
+#endif
+#endif
+
+char    namelh[80] = "";        /* имя файла настройки */
+char   *filelh = namelh;        /* указатель для hw_set */
+
+extern  pag_a();        /* настройка атрибутов */
+extern  pag_k();        /* настройка клавиш */
+extern  pag_mk();       /* настройка основных клавиш */
+
+extern  LPA lpainp[];
+extern  LPA lpaout[];
+
+static  int ex_flg = 0; /* флаг: пора заканчивать */
+
+mkquit()
+{
+	er_pag();
+	cp_set(0, 0, TXT);
+	printf("%s", "Новые режимы настройки потеряны");
+	cp_set(2, 0, TXT);
+	ex_flg = 1;
+	return(TRUE);
+}
+
+/* связь физических и логических кодов, а также имен клавиш */
+extern  KBL kbl[];
+/* флаг: доп. клавиатура включена */
+extern  int     kpadon;
+
+mkexit()
+{
+	FILE *ofp;
+	register int i;
+	register KBL *kblp;
+
+	if( namelh[0] && (ofp=fopen(namelh, "w")) != NULL ) {
+		/*------сохраняем настройку: */
+
+		/*---- атрибуты */
+		for(i=0; i<8; i++) {
+			fprintf(ofp, "%1d%c%03o%c%03o\n", i,
+			lpaout[i].lpa_p, lpaout[i].lpa_a,
+			lpainp[i].lpa_p, lpainp[i].lpa_a        );
+		}
+
+		/*---- доп. клавиатура */
+		fprintf(ofp, "%c\n", (kpadon ? '+' : '-') );
+
+		/*---- клавиши */
+		for(kblp=kbl; kblp->t_cod; kblp++) {
+			putc(':', ofp);
+			putc(cod0(kblp->t_key), ofp);
+			putc(cod1(kblp->t_key), ofp);
+			putc(cod0(kblp->t_cod), ofp);
+			putc(cod1(kblp->t_cod), ofp);
+			if(kblp->t_knm) fprintf(ofp, "%s", kblp->t_knm);
+			putc('\n', ofp);
+		}
+		cp_set(-1, 0, TXT);
+	} else {
+		er_pag();
+		printf("%s", "Настройку не удалось сохранить в файле");
+		cp_set(2, 0, TXT);
+	}
+	ex_flg = 1;
+	return(TRUE);
+}
+
+#undef  LVAR
+#define LVAR TXT
+
+static
+---PAGE mainm
+---LINES
+m_m  = ipm      -   -   pag_mk  tst_m   " Основные команды "
+m_k  = ipm      -   -   pag_k   tst_m   " Прочие команды "
+m_a  = ipm      -   -   pag_a   tst_m   " Атрибуты видео "
+m_qu = ipm      -   -   mkquit  tst_m   " QUIT (потерять) "
+m_ex = ipm      -   -   mkexit  tst_m   " EXIT (записать) "
+lh   = v        -   -   -       -       namelh
+sp   = gh       -   -   -       -       "ПРОБЕЛ"
+
+---SCREEN
+=VHSET -- Настройка диалога
+
+  LINLIB V3.4
+
+  Файл настройки:
+      .lh................................................................
+
+
+---#                    .m_m.......................
+			.m_a.......................
+			.m_k.......................
+		Выход:
+			.m_qu......................
+			.m_ex......................
+
+
+	Укажите курсором пункт меню, нажмите .sp.....
+
+
+					.:?  или .:HE.... -- Подсказка
+---END
+
+static  char    helpf[] = "vhsetm.lb";
+
+/*------------*/
+/* VIDEO MAIN */
+/*------------*/
+vmain()
+{
+	register char *s;
+	kbcod cod ;
+	LINE *cline;    /* указатель на текущую линию страницы */
+
+	cline = mainm;
+
+	er_pag();
+
+	if( namelh[0] == 0 )
+		w_emsg("Не знаю, где сохранять настройку, см. инструкцию.");
+
+	w_page(mainm);
+
+	while( -1 ) {
+		cod = r_page(mainm, &cline, 0);
+
+		/*=== может, пора заканчивать??? */
+		if(ex_flg) return;
+
+		switch(cod) {
+		case '?' :
+		case ' ' :
+			er_pag();
+			w_page(mainm);  /* перерисовать экран после меню */
+			break;
+		case KB_HE:
+			w_help(helpf);
+			er_pag();
+			w_page(mainm);
+		}
+	}
+}
+
+#ifdef RT11
+/* $$narg = 1 ;            /* не выдавать подсказку на ввод аргументов */
+#endif
+
+main()
+/*--------*/
+/*  MAIN  */
+/*--------*/
+{
+    hw_set();
+    io_set(IO_VIDEO);
+
+    vmain();
+
+    io_set(IO_TTYPE);
+    exit(0);
+}

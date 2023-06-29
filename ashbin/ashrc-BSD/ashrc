@@ -1,0 +1,62 @@
+:
+#
+# Assistant for sh startup
+# Version for SVR4.x
+#------------------------------
+# First Bourne' shell started,
+# then exec setup environ, then exec ash
+#------------------------------
+#
+# DEBUG switch: uncomment next line.
+# set -x
+#
+#---------------------------------------------
+# environ-passed setup (ASH):
+#
+# h     history will be stored
+# lNN   lines for filename menu (from 2 to 20), default 10
+# p     key help panel bar on
+# s     scroll cmd script but no clear screen
+# c     clock show,  uprigh corner of screen
+# m     check mailbox (Biff)
+#
+# example for assist environ-passed setup:
+
+ASH=l10pshcm
+
+#---------------------------------------------
+# label for identification machine name, /dev/tty???,
+# and other likely info.
+# ASHLBL
+#
+tty=`tty`
+tty=`basename $tty | sed -e 's/tty//'`
+uname=`hostname -s`
+ruid=`id | sed -e 's/^uid=[0-9]*(\([0-9A-Za-z]*\)) .*$/\1/'`
+ASHLBL="${ruid}@${uname}:${tty}"
+
+case $PATH in
+*/usr/local/bin*)     ;;
+*)
+	PATH=$PATH:/usr/local/bin
+esac
+
+#EDITOR=re
+#PAGER=/usr/local/bin/m
+
+export ASHLBL PATH PAGER
+#export EDITOR
+
+stty kill '^u'
+
+# decoration on xterm window
+case $TERM in
+*xterm*)
+	ASH=l10sh
+	echo "]0;$ASHLBL"
+	ASHLBL=""
+	;;
+esac
+
+export ASH
+exec /usr/local/bin/ash "$@"
